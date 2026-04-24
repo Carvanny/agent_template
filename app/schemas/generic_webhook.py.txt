@@ -1,0 +1,32 @@
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class GenericMedia(BaseModel):
+    url: Optional[str] = None
+    mimetype: Optional[str] = None
+    filename: Optional[str] = None
+    model_config = ConfigDict(extra="ignore")
+
+
+class GenericMessage(BaseModel):
+    id: str
+    timestamp: float
+    from_id: str = Field(..., alias="from")
+    participant: Optional[str] = None
+    body: Optional[str] = None
+    has_media: bool = False
+    media: Optional[GenericMedia] = None
+    media_url: Optional[str] = None
+    media_mimetype: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+
+class GenericWebhookEvent(BaseModel):
+    id: str
+    timestamp: float
+    session: str = "default"
+    event: str = "message"
+    message: GenericMessage
+    model_config = ConfigDict(extra="ignore")

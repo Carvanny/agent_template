@@ -1,0 +1,1 @@
+Adcione nesta pasta os scripts .py para fazer algo especifico

@@ -1,0 +1,67 @@
+services:
+
+  redis:
+    image: redis:7.2-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD not set}
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  waha:
+    image: devlikeapro/waha:latest
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      WAHA_SERVER_HOST: 0.0.0.0
+      WAHA_WEBHOOK_URL: ${WHATSAPP_HOOK_URL:-http://host.docker.internal:8000/webhook/waha}
+      WHATSAPP_DEFAULT_ENGINE: ${WHATSAPP_DEFAULT_ENGINE:-GOWS}
+      WHATSAPP_HOOK_EVENTS: ${WHATSAPP_HOOK_EVENTS:-message}
+      WHATSAPP_HOOK_CUSTOM_HEADERS: ${WHATSAPP_HOOK_CUSTOM_HEADERS:-x-webhook-secret:${WAHA_WEBHOOK_SECRET}}
+      WAHA_DEBUG: ${WAHA_DEBUG:-false}
+      WAHA_API_KEY: ${WAHA_API_KEY:?WAHA_API_KEY not set}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:?WAHA_DASHBOARD_PASSWORD not set}
+      WHATSAPP_SWAGGER_USERNAME: ${WHATSAPP_SWAGGER_USERNAME:-admin}
+      WHATSAPP_SWAGGER_PASSWORD: ${WHATSAPP_SWAGGER_PASSWORD:?WHATSAPP_SWAGGER_PASSWORD not set}
+    volumes:
+      - waha_sessions:/app/.sessions
+      - waha_media:/app/.media
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  app:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      WAHA_BASE_URL: http://waha:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite_data:/app/db
+      - ./memory:/app/memory:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      waha:
+        condition: service_started
+
+volumes:
+  redis_data:
+  waha_sessions:
+  waha_media:
+  sqlite_data:
